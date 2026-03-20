@@ -22,9 +22,10 @@ jobs:
             -u ${{ secrets.REGISTRY_USERNAME }} \
             --password-stdin
 
+# Build Odoo image 
       - name: Build Docker image
         run: |
-          docker build -t ${{ secrets.REGISTRY_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }} .
+          docker build -t ${{ secrets.REGISTRY_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }} -f app/odoo/Dockerfile .
 
       - name: Push Docker image
         run: |

@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: odoo-ingress
+  namespace: odoo
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - odoo.local
+      secretName: esmos-tls
+  rules:
+    - host: odoo.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: odoo-service
+                port:
+                  number: 8069
