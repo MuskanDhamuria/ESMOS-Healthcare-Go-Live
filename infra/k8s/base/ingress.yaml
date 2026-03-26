@@ -7,10 +7,10 @@ spec:
   ingressClassName: nginx
   tls:
     - hosts:
-        - odoo.local
+        - odoo.esmos.mooo.com
       secretName: esmos-tls
   rules:
-    - host: odoo.local
+    - host: odoo.esmos.mooo.com
       http:
         paths:
           - path: /
