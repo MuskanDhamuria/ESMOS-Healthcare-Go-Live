@@ -8,7 +8,7 @@ spec:
   tls:
     - hosts:
         - odoo.esmos.mooo.com
-      secretName: esmos-tls
+      secretName: odoo-tls
   rules:
     - host: odoo.esmos.mooo.com
       http:
