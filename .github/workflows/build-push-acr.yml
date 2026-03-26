@@ -23,8 +23,8 @@ jobs:
 
       - name: Log in to ACR
         run: |
-          echo "${{ secrets.REGISTRY_PASSWORD }}" | docker login ${{ secrets.REGISTRY_LOGIN_SERVER }} \
-            -u ${{ secrets.REGISTRY_USERNAME }} \
+          printf '%s' "${{ secrets.REGISTRY_PASSWORD }}" | docker login "${{ secrets.REGISTRY_LOGIN_SERVER }}" \
+            --username "${{ secrets.REGISTRY_USERNAME }}" \
             --password-stdin
 
 # Build Odoo image 
