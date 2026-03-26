@@ -38,6 +38,22 @@ spec:
           image: esmosacr.azurecr.io/odoo:b9a30cbe2cf5c477f90c1bb20efa88b746756e4d
           ports:
             - containerPort: 8069
+          env:
+            - name: HOST
+              value: postgres
+            - name: USER
+              valueFrom:
+                secretKeyRef:
+                  name: odoo-db-secret
+                  key: POSTGRES_USER
+            - name: PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: odoo-db-secret
+                  key: POSTGRES_PASSWORD
+          volumeMounts:
+            - name: odoo-data
+              mountPath: /var/lib/odoo
           resources:
             requests:
               cpu: "250m"
@@ -45,3 +61,7 @@ spec:
             limits:
               cpu: "550m"
               memory: "1Gi"
+      volumes:
+        - name: odoo-data
+          persistentVolumeClaim:
+            claimName: odoo-pvc
