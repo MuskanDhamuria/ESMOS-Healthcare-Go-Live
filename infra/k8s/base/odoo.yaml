@@ -35,7 +35,7 @@ spec:
     spec:
       containers:
         - name: odoo
-          image: esmosacr.azurecr.io/odoo:b9a30cbe2cf5c477f90c1bb20efa88b746756e4d
+          image: esmosacr.azurecr.io/odoo:ee3229eb0f427d27b2e93d1483cac33fc83e5dd9
           ports:
             - containerPort: 8069
           env:
