@@ -25,6 +25,8 @@ spec:
     metadata:
       labels:
         app: odoo
+      annotations:
+        demo-change: "v1"
     spec:
       containers:
         - name: odoo
