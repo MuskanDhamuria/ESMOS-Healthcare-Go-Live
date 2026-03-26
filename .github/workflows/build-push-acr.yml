@@ -5,6 +5,9 @@ on:
     branches: [ "main" ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 env:
   IMAGE_NAME: odoo
   DEPLOYMENT_NAME: odoo
@@ -14,6 +17,7 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    if: ${{ github.actor != 'github-actions[bot]' }}
     env:
       AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
 
@@ -39,6 +43,63 @@ jobs:
       - name: Show image tag
         run: |
           echo "Pushed image: ${{ secrets.REGISTRY_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+
+      - name: Update Odoo manifest image tag (GitOps for ArgoCD)
+        run: |
+          IMAGE="${{ secrets.REGISTRY_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          python - <<'PY'
+          import os
+          import pathlib
+          import re
+          
+          image = os.environ["IMAGE"]
+          path = pathlib.Path("infra/k8s/base/odoo.yaml")
+          content = path.read_text(encoding="utf-8").splitlines(True)
+          
+          out = []
+          in_deploy = False
+          in_odoo_container = False
+          replaced = False
+          
+          for line in content:
+              if re.match(r"^kind:\\s*Deployment\\s*$", line):
+                  in_deploy = True
+                  in_odoo_container = False
+              elif re.match(r"^---\\s*$", line):
+                  in_deploy = False
+                  in_odoo_container = False
+          
+              if in_deploy and re.match(r"^\\s*-\\s*name:\\s*odoo\\s*$", line):
+                  in_odoo_container = True
+          
+              if in_deploy and in_odoo_container and re.match(r"^\\s*image:\\s*", line):
+                  indent = re.match(r"^(\\s*)", line).group(1)
+                  line = f"{indent}image: {image}\n"
+                  in_odoo_container = False
+                  replaced = True
+          
+              out.append(line)
+          
+          if not replaced:
+              raise SystemExit(f"Failed to update image in {path}; expected container name 'odoo' and an image line.")
+          
+          path.write_text("".join(out), encoding="utf-8")
+          print(f"Updated {path} image -> {image}")
+          PY
+        env:
+          IMAGE: ${{ secrets.REGISTRY_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+      - name: Commit and push manifest change
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add infra/k8s/base/odoo.yaml
+          if git diff --cached --quiet; then
+            echo "No manifest changes to commit."
+            exit 0
+          fi
+          git commit -m "chore(deploy): bump odoo image to ${{ github.sha }}"
+          git push
 
       - name: Azure login (optional, for AKS deploy)
         uses: azure/login@v2
