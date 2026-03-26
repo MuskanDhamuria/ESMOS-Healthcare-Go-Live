@@ -58,7 +58,7 @@ jobs:
 
           start = None
           for index, line in enumerate(lines):
-              if re.match(r"^kind:\\s*Deployment\\s*$", line):
+              if re.match(r"^kind:\s*Deployment\s*$", line):
                   start = index
                   break
 
@@ -67,7 +67,7 @@ jobs:
 
           end = len(lines)
           for index in range(start + 1, len(lines)):
-              if re.match(r"^---\\s*$", lines[index]):
+              if re.match(r"^---\s*$", lines[index]):
                   end = index
                   break
 
@@ -75,11 +75,11 @@ jobs:
           in_containers = False
 
           for index in range(start, end):
-              if re.match(r"^\\s*containers:\\s*$", lines[index]):
+              if re.match(r"^\s*containers:\s*$", lines[index]):
                   in_containers = True
                   continue
 
-              if in_containers and re.match(r"^\\s*image:\\s*", lines[index]):
+              if in_containers and re.match(r"^\s*image:\s*", lines[index]):
                   indent = re.match(r"^(\\s*)", lines[index]).group(1)
                   lines[index] = f"{indent}image: {image}\n"
                   replaced = True
@@ -87,7 +87,7 @@ jobs:
 
           if not replaced:
               for index in range(start, end):
-                  if re.match(r"^\\s*image:\\s*", lines[index]):
+                  if re.match(r"^\s*image:\s*", lines[index]):
                       indent = re.match(r"^(\\s*)", lines[index]).group(1)
                       lines[index] = f"{indent}image: {image}\n"
                       replaced = True
