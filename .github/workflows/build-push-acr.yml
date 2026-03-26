@@ -16,15 +16,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Azure login
-        uses: azure/login@v2
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
       - name: Log in to ACR
         run: |
-          ACR_NAME="$(echo "${{ secrets.REGISTRY_LOGIN_SERVER }}" | sed 's/\\.azurecr\\.io$//')"
-          az acr login --name "$ACR_NAME"
+          echo "${{ secrets.REGISTRY_PASSWORD }}" | docker login ${{ secrets.REGISTRY_LOGIN_SERVER }} \
+            -u ${{ secrets.REGISTRY_USERNAME }} \
+            --password-stdin
 
 # Build Odoo image 
       - name: Build Docker image
@@ -39,7 +35,14 @@ jobs:
         run: |
           echo "Pushed image: ${{ secrets.REGISTRY_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
 
+      - name: Azure login (optional, for AKS deploy)
+        uses: azure/login@v2
+        if: ${{ secrets.AZURE_CREDENTIALS != '' }}
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
       - name: Get AKS credentials
+        if: ${{ secrets.AZURE_CREDENTIALS != '' }}
         run: |
           az aks get-credentials \
             --resource-group ${{ secrets.AKS_RESOURCE_GROUP }} \
@@ -47,11 +50,13 @@ jobs:
             --overwrite-existing
 
       - name: Deploy new image to AKS
+        if: ${{ secrets.AZURE_CREDENTIALS != '' }}
         run: |
           kubectl set image deployment/${{ env.DEPLOYMENT_NAME }} \
             ${{ env.CONTAINER_NAME }}=${{ secrets.REGISTRY_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
             -n ${{ env.NAMESPACE }}
 
       - name: Verify rollout
+        if: ${{ secrets.AZURE_CREDENTIALS != '' }}
         run: |
           kubectl rollout status deployment/${{ env.DEPLOYMENT_NAME }} -n ${{ env.NAMESPACE }}
