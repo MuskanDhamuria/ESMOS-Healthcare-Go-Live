@@ -80,7 +80,7 @@ jobs:
                   continue
 
               if in_containers and re.match(r"^\s*image:\s*", lines[index]):
-                  indent = re.match(r"^(\\s*)", lines[index]).group(1)
+                  indent = re.match(r"^(\s*)", lines[index]).group(1)
                   lines[index] = f"{indent}image: {image}\n"
                   replaced = True
                   break
@@ -88,7 +88,7 @@ jobs:
           if not replaced:
               for index in range(start, end):
                   if re.match(r"^\s*image:\s*", lines[index]):
-                      indent = re.match(r"^(\\s*)", lines[index]).group(1)
+                      indent = re.match(r"^(\s*)", lines[index]).group(1)
                       lines[index] = f"{indent}image: {image}\n"
                       replaced = True
                       break
