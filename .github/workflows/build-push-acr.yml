@@ -54,36 +54,49 @@ jobs:
           
           image = os.environ["IMAGE"]
           path = pathlib.Path("infra/k8s/base/odoo.yaml")
-          content = path.read_text(encoding="utf-8").splitlines(True)
-          
-          out = []
-          in_deploy = False
-          in_odoo_container = False
-          replaced = False
-          
-          for line in content:
+          lines = path.read_text(encoding="utf-8").splitlines(True)
+
+          start = None
+          for index, line in enumerate(lines):
               if re.match(r"^kind:\\s*Deployment\\s*$", line):
-                  in_deploy = True
-                  in_odoo_container = False
-              elif re.match(r"^---\\s*$", line):
-                  in_deploy = False
-                  in_odoo_container = False
-          
-              if in_deploy and re.match(r"^\\s*-\\s*name:\\s*odoo\\s*$", line):
-                  in_odoo_container = True
-          
-              if in_deploy and in_odoo_container and re.match(r"^\\s*image:\\s*", line):
-                  indent = re.match(r"^(\\s*)", line).group(1)
-                  line = f"{indent}image: {image}\n"
-                  in_odoo_container = False
+                  start = index
+                  break
+
+          if start is None:
+              raise SystemExit(f"Failed to update image in {path}; no Deployment found.")
+
+          end = len(lines)
+          for index in range(start + 1, len(lines)):
+              if re.match(r"^---\\s*$", lines[index]):
+                  end = index
+                  break
+
+          replaced = False
+          in_containers = False
+
+          for index in range(start, end):
+              if re.match(r"^\\s*containers:\\s*$", lines[index]):
+                  in_containers = True
+                  continue
+
+              if in_containers and re.match(r"^\\s*image:\\s*", lines[index]):
+                  indent = re.match(r"^(\\s*)", lines[index]).group(1)
+                  lines[index] = f"{indent}image: {image}\n"
                   replaced = True
-          
-              out.append(line)
-          
+                  break
+
           if not replaced:
-              raise SystemExit(f"Failed to update image in {path}; expected container name 'odoo' and an image line.")
-          
-          path.write_text("".join(out), encoding="utf-8")
+              for index in range(start, end):
+                  if re.match(r"^\\s*image:\\s*", lines[index]):
+                      indent = re.match(r"^(\\s*)", lines[index]).group(1)
+                      lines[index] = f"{indent}image: {image}\n"
+                      replaced = True
+                      break
+
+          if not replaced:
+              raise SystemExit(f"Failed to update image in {path}; no image line found in Deployment.")
+
+          path.write_text("".join(lines), encoding="utf-8")
           print(f"Updated {path} image -> {image}")
           PY
         env:
