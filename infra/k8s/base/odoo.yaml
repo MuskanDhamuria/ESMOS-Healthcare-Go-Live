@@ -31,23 +31,10 @@ spec:
           image: odoo:17
           ports:
             - containerPort: 8069
-          env:
-            - name: HOST
-              value: postgres
-            - name: USER
-              valueFrom:
-                secretKeyRef:
-                  name: odoo-db-secret
-                  key: POSTGRES_USER
-            - name: PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: odoo-db-secret
-                  key: POSTGRES_PASSWORD
-          volumeMounts:
-            - name: odoo-data
-              mountPath: /var/lib/odoo
-      volumes:
-        - name: odoo-data
-          persistentVolumeClaim:
-            claimName: odoo-pvc
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "500m"
+              memory: "1Gi"
