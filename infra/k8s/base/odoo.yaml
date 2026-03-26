@@ -5,7 +5,9 @@ metadata:
   namespace: odoo
 spec:
   ports:
-    - port: 8069
+    - name: http
+      port: 8069
+      targetPort: 8069
   selector:
     app: odoo
 ---
@@ -33,6 +35,19 @@ spec:
             - name: HOST
               value: postgres
             - name: USER
-              value: odoo
+              valueFrom:
+                secretKeyRef:
+                  name: odoo-db-secret
+                  key: POSTGRES_USER
             - name: PASSWORD
-              value: odoo
+              valueFrom:
+                secretKeyRef:
+                  name: odoo-db-secret
+                  key: POSTGRES_PASSWORD
+          volumeMounts:
+            - name: odoo-data
+              mountPath: /var/lib/odoo
+      volumes:
+        - name: odoo-data
+          persistentVolumeClaim:
+            claimName: odoo-pvc
