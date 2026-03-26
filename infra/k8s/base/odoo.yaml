@@ -31,7 +31,7 @@ spec:
       labels:
         app: odoo
       annotations:
-        demo-change: "v2"
+        demo-change: "v3"
     spec:
       containers:
         - name: odoo
