@@ -1,0 +1,110 @@
+name: Rollback Odoo (GitOps)
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Odoo image tag to deploy (e.g. 4fb654e3...)"
+        required: true
+        type: string
+      full_image:
+        description: "Optional full image ref (overrides image_tag), e.g. esmosacr.azurecr.io/odoo:4fb654e3..."
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  IMAGE_NAME: odoo
+  DEPLOYMENT_NAME: odoo
+  NAMESPACE: odoo
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute target image
+        id: image
+        run: |
+          if [ -n "${{ inputs.full_image }}" ]; then
+            echo "image=${{ inputs.full_image }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "image=${{ secrets.REGISTRY_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ inputs.image_tag }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Update Odoo manifest image tag (GitOps for ArgoCD)
+        run: |
+          IMAGE="${{ steps.image.outputs.image }}"
+          python - <<'PY'
+          import os
+          import pathlib
+          import re
+
+          image = os.environ["IMAGE"]
+          path = pathlib.Path("infra/k8s/base/odoo.yaml")
+          lines = path.read_text(encoding="utf-8").splitlines(True)
+
+          start = None
+          for index, line in enumerate(lines):
+              if re.match(r"^kind:\s*Deployment\s*$", line):
+                  start = index
+                  break
+
+          if start is None:
+              raise SystemExit(f"Failed to update image in {path}; no Deployment found.")
+
+          end = len(lines)
+          for index in range(start + 1, len(lines)):
+              if re.match(r"^---\s*$", lines[index]):
+                  end = index
+                  break
+
+          replaced = False
+          in_containers = False
+
+          for index in range(start, end):
+              if re.match(r"^\s*containers:\s*$", lines[index]):
+                  in_containers = True
+                  continue
+
+              if in_containers and re.match(r"^\s*image:\s*", lines[index]):
+                  indent = re.match(r"^(\s*)", lines[index]).group(1)
+                  lines[index] = f"{indent}image: {image}\n"
+                  replaced = True
+                  break
+
+          if not replaced:
+              for index in range(start, end):
+                  if re.match(r"^\s*image:\s*", lines[index]):
+                      indent = re.match(r"^(\s*)", lines[index]).group(1)
+                      lines[index] = f"{indent}image: {image}\n"
+                      replaced = True
+                      break
+
+          if not replaced:
+              raise SystemExit(f"Failed to update image in {path}; no image line found in Deployment.")
+
+          path.write_text("".join(lines), encoding="utf-8")
+          print(f"Updated {path} image -> {image}")
+          PY
+        env:
+          IMAGE: ${{ steps.image.outputs.image }}
+
+      - name: Commit and push rollback
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add infra/k8s/base/odoo.yaml
+          if git diff --cached --quiet; then
+            echo "No manifest changes to commit."
+            exit 0
+          fi
+          git commit -m "chore(deploy): rollback odoo image to ${{ steps.image.outputs.image }}"
+          git pull --rebase origin main
+          git push
